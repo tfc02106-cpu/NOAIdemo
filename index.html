@@ -1,31 +1,550 @@
-<details class="engineer-settings" id="engineerSettings">
-  <summary>工程師設定欄（點開調整門檻）</summary>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>四孔黃色螺栓 / 黃銅螺套檢測</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f5f7fb; color: #172033; }
+    header { padding: 22px 28px 12px; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    .note { margin: 0; color: #556070; line-height: 1.6; }
+    main { padding: 0 28px 32px; }
+    .panel { background: #fff; border: 1px solid #dce2eb; border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(20, 34, 60, .06); }
+    .controls { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 14px; align-items: end; margin-bottom: 14px; }
+    .engineer-settings { margin: 4px 0 14px; border: 1px dashed #b9c4d3; border-radius: 12px; background: #f8fafc; overflow: hidden; }
+    .engineer-settings > summary { list-style: none; cursor: pointer; padding: 12px 14px; font-weight: 800; color: #25324a; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+    .engineer-settings > summary::-webkit-details-marker { display: none; }
+    .engineer-settings > summary::after { content: "展開"; font-size: 12px; color: #1f6feb; border: 1px solid #b7cdf8; border-radius: 999px; padding: 3px 9px; background: #fff; }
+    .engineer-settings[open] > summary::after { content: "收合"; }
+    .engineer-grid { display: grid; grid-template-columns: repeat(3, minmax(170px, 1fr)); gap: 14px; padding: 0 14px 14px; align-items: end; }
+    .settings-note { grid-column: 1 / -1; margin: 0; color: #64748b; font-size: 12px; line-height: 1.6; }
+    .field { display: grid; gap: 6px; }
+    label { font-size: 13px; color: #4e5969; }
+    input[type="number"], input[type="range"], input[type="file"] { width: 100%; box-sizing: border-box; }
+    input[type="number"] { padding: 8px 10px; border: 1px solid #ccd5e0; border-radius: 10px; }
+    button { border: 0; border-radius: 10px; padding: 10px 14px; background: #1f6feb; color: #fff; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #e2e8f0; color: #1f2937; }
+    button:disabled { background: #9aa7b5; cursor: not-allowed; }
+    .status { margin: 10px 0 14px; padding: 10px 12px; border-radius: 10px; background: #eef3fa; color: #334155; }
+    .ok { background: #e8f7ef; color: #116536; border: 1px solid #b9e7cc; }
+    .ng { background: #fff0f0; color: #a50f15; border: 1px solid #ffd0d0; }
+    .canvases { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    canvas { width: 100%; max-width: 1120px; height: auto; background: #e9eef5; border-radius: 12px; border: 1px solid #ccd5e0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e3e8ef; text-align: left; }
+    th { color: #4e5969; font-weight: 700; background: #f8fafc; }
+    .small { font-size: 12px; color: #6b7280; line-height: 1.6; margin-top: 12px; }
+    @media (max-width: 900px) { .controls, .engineer-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 560px) { .controls, .engineer-grid { grid-template-columns: 1fr; } main, header { padding-left: 14px; padding-right: 14px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>四孔黃色螺栓 / 黃銅螺套檢測</h1>
+    <p class="note">策略：先找黑色內孔，再檢查內孔周圍是否有黃色 / 黃銅色環；若螺套在影像邊界被裁切，改用黃色連通區當備援。</p>
+  </header>
 
-  <div class="engineer-grid">
-    <p class="settings-note">
-      這裡放偵測門檻，正常操作時不用展開。
-      漏抓時可降低黃環比例或黃色強度；誤抓時提高門檻。
-    </p>
+  <main>
+    <section class="panel">
+      <div class="controls">
+        <div class="field">
+          <label for="fileInput">載入照片</label>
+          <input id="fileInput" type="file" accept="image/*" />
+        </div>
 
-    <div class="field">
-      <label for="darkThreshold">黑孔門檻：<span id="darkThresholdValue">65</span></label>
-      <input id="darkThreshold" type="range" min="35" max="110" step="1" value="65" />
-    </div>
+        <div class="field">
+          <label for="expectedCount">期望數量</label>
+          <input id="expectedCount" type="number" min="1" max="20" value="4" />
+        </div>
 
-    <div class="field">
-      <label for="yellowRatio">黃環比例門檻：<span id="yellowRatioValue">25%</span></label>
-      <input id="yellowRatio" type="range" min="5" max="70" step="1" value="25" />
-    </div>
+        <div class="field">
+          <button id="runBtn" disabled>開始偵測</button>
+        </div>
+      </div>
 
-    <div class="field">
-      <label for="warmDelta">黃色強度門檻：<span id="warmDeltaValue">8</span></label>
-      <input id="warmDelta" type="range" min="0" max="35" step="1" value="8" />
-    </div>
+      <details class="engineer-settings" id="engineerSettings">
+        <summary>工程師設定欄（點開調整門檻）</summary>
+        <div class="engineer-grid">
+          <p class="settings-note">
+            這裡放偵測門檻，正常操作時不用展開。漏抓時可降低黃環比例或黃色強度；誤抓時提高門檻。
+          </p>
 
-    <div class="field">
-      <button id="resetEngineerSettings" type="button" class="secondary">
-        還原預設門檻
-      </button>
-    </div>
-  </div>
-</details>
+          <div class="field">
+            <label for="darkThreshold">黑孔門檻：<span id="darkThresholdValue">65</span></label>
+            <input id="darkThreshold" type="range" min="35" max="110" step="1" value="65" />
+          </div>
+
+          <div class="field">
+            <label for="yellowRatio">黃環比例門檻：<span id="yellowRatioValue">25%</span></label>
+            <input id="yellowRatio" type="range" min="5" max="70" step="1" value="25" />
+          </div>
+
+          <div class="field">
+            <label for="warmDelta">黃色強度門檻：<span id="warmDeltaValue">8</span></label>
+            <input id="warmDelta" type="range" min="0" max="35" step="1" value="8" />
+          </div>
+
+          <div class="field">
+            <button id="resetEngineerSettings" type="button" class="secondary">還原預設門檻</button>
+          </div>
+        </div>
+      </details>
+
+      <div id="status" class="status">OpenCV.js 載入中。第一次開啟需要網路載入函式庫。</div>
+
+      <div class="canvases">
+        <canvas id="canvasInput" hidden></canvas>
+        <canvas id="canvasOutput"></canvas>
+      </div>
+
+      <div id="result" class="status">請先載入照片。</div>
+
+      <table id="detailTable" hidden>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>中心 X</th>
+            <th>中心 Y</th>
+            <th>半徑估計</th>
+            <th>信心 / 黃色比例</th>
+            <th>來源</th>
+          </tr>
+        </thead>
+        <tbody id="detailBody"></tbody>
+      </table>
+
+      <p class="small">
+        調參方向已放在「工程師設定欄」內；生產操作只需載入照片與確認數量。若要降低誤判，固定治具後建議再加入 ROI 限定。
+      </p>
+    </section>
+  </main>
+
+  <script>
+    let cvReady = false;
+    let imageReady = false;
+    let lastImage = new Image();
+
+    const el = (id) => document.getElementById(id);
+    const canvasInput = el('canvasInput');
+    const canvasOutput = el('canvasOutput');
+    const statusBox = el('status');
+    const runBtn = el('runBtn');
+
+    function updateControlText() {
+      el('darkThresholdValue').textContent = el('darkThreshold').value;
+      el('yellowRatioValue').textContent = el('yellowRatio').value + '%';
+      el('warmDeltaValue').textContent = el('warmDelta').value;
+    }
+
+    ['darkThreshold', 'yellowRatio', 'warmDelta', 'expectedCount'].forEach((id) => {
+      el(id).addEventListener('input', () => {
+        updateControlText();
+        if (cvReady && imageReady) runDetection();
+      });
+    });
+
+    el('resetEngineerSettings').addEventListener('click', () => {
+      el('darkThreshold').value = 65;
+      el('yellowRatio').value = 25;
+      el('warmDelta').value = 8;
+      updateControlText();
+      if (cvReady && imageReady) runDetection();
+    });
+
+    updateControlText();
+
+    var Module = {
+      onRuntimeInitialized() {
+        cvReady = true;
+        statusBox.textContent = 'OpenCV.js 已就緒，請載入照片。';
+        runBtn.disabled = !imageReady;
+      }
+    };
+
+    el('fileInput').addEventListener('change', (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      lastImage = new Image();
+      lastImage.onload = () => {
+        drawImageToInputCanvas(lastImage);
+        imageReady = true;
+        runBtn.disabled = !cvReady;
+        URL.revokeObjectURL(url);
+        if (cvReady) runDetection();
+      };
+      lastImage.onerror = () => {
+        imageReady = false;
+        runBtn.disabled = true;
+        statusBox.textContent = '圖片載入失敗，請換一張影像。';
+        URL.revokeObjectURL(url);
+      };
+      lastImage.src = url;
+    });
+
+    runBtn.addEventListener('click', runDetection);
+
+    function drawImageToInputCanvas(img) {
+      const maxSide = 1280;
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+
+      canvasInput.width = w;
+      canvasInput.height = h;
+      canvasOutput.width = w;
+      canvasOutput.height = h;
+
+      const ctx = canvasInput.getContext('2d', { willReadFrequently: true });
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const outCtx = canvasOutput.getContext('2d');
+      outCtx.clearRect(0, 0, w, h);
+      outCtx.drawImage(img, 0, 0, w, h);
+    }
+
+    function isWarmYellowPixel(r, g, b, warmDelta) {
+      const maxv = Math.max(r, g, b);
+      const minv = Math.min(r, g, b);
+
+      // 黃銅 / 黃色通常 R、G 高於 B；灰藍 PBT 則 B 偏高或三通道接近。
+      const warmth = 0.55 * r + 0.45 * g - b;
+      return (
+        warmth > warmDelta &&
+        r > 70 &&
+        g > 70 &&
+        (maxv - minv) > 6 &&
+        Math.abs(r - g) < 95
+      );
+    }
+
+    function brassRatioInAnnulus(src, cx, cy, darkRadius, warmDelta) {
+      const w = src.cols;
+      const h = src.rows;
+      const data = src.data; // RGBA
+
+      const innerR = Math.max(darkRadius * 1.05, 2);
+      const outerR = Math.max(darkRadius * 2.05, innerR + 4);
+      const inner2 = innerR * innerR;
+      const outer2 = outerR * outerR;
+
+      const x0 = Math.max(0, Math.floor(cx - outerR));
+      const x1 = Math.min(w - 1, Math.ceil(cx + outerR));
+      const y0 = Math.max(0, Math.floor(cy - outerR));
+      const y1 = Math.min(h - 1, Math.ceil(cy + outerR));
+
+      let total = 0;
+      let yellow = 0;
+
+      for (let y = y0; y <= y1; y++) {
+        const dy = y - cy;
+        for (let x = x0; x <= x1; x++) {
+          const dx = x - cx;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < inner2 || d2 > outer2) continue;
+
+          total++;
+          const idx = (y * w + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          if (isWarmYellowPixel(r, g, b, warmDelta)) yellow++;
+        }
+      }
+
+      return total > 0 ? yellow / total : 0;
+    }
+
+    function makeWarmMask(src, warmDelta) {
+      const w = src.cols;
+      const h = src.rows;
+      const mask = new cv.Mat(h, w, cv.CV_8UC1);
+      const s = src.data; // RGBA
+      const m = mask.data;
+
+      for (let i = 0, j = 0; j < w * h; i += 4, j++) {
+        const r = s[i];
+        const g = s[i + 1];
+        const b = s[i + 2];
+        m[j] = isWarmYellowPixel(r, g, b, warmDelta) ? 255 : 0;
+      }
+      return mask;
+    }
+
+    function darkRatioInRect(gray, rect, pad, threshold) {
+      const w = gray.cols;
+      const h = gray.rows;
+      const data = gray.data;
+      const x0 = Math.max(0, rect.x - pad);
+      const y0 = Math.max(0, rect.y - pad);
+      const x1 = Math.min(w - 1, rect.x + rect.width + pad);
+      const y1 = Math.min(h - 1, rect.y + rect.height + pad);
+
+      let total = 0;
+      let dark = 0;
+      const th = Math.max(80, threshold + 15);
+
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          total++;
+          if (data[y * w + x] < th) dark++;
+        }
+      }
+      return total > 0 ? dark / total : 0;
+    }
+
+    function mergeDetections(detections, w, h) {
+      const baseMergeDistance = Math.max(18, 0.035 * Math.min(w, h));
+      const sorted = detections.slice().sort((a, b) => b.score - a.score);
+      const clusters = [];
+
+      for (const d of sorted) {
+        let hit = null;
+        for (const c of clusters) {
+          const dist = Math.hypot(d.x - c.x, d.y - c.y);
+          const threshold = Math.max(baseMergeDistance, 0.75 * (d.r + c.r));
+          if (dist < threshold) {
+            hit = c;
+            break;
+          }
+        }
+
+        if (!hit) {
+          clusters.push({
+            x: d.x,
+            y: d.y,
+            r: d.r,
+            score: d.score,
+            sources: [d.source],
+            rawCount: 1
+          });
+        } else {
+          const w1 = hit.score;
+          const w2 = d.score;
+          hit.x = (hit.x * w1 + d.x * w2) / (w1 + w2);
+          hit.y = (hit.y * w1 + d.y * w2) / (w1 + w2);
+          hit.r = Math.max(hit.r, d.r);
+          hit.score = Math.max(hit.score, d.score);
+          hit.sources.push(d.source);
+          hit.rawCount++;
+        }
+      }
+
+      clusters.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+      return clusters;
+    }
+
+    function renderResult(detections, expectedCount, pass) {
+      const result = el('result');
+      result.className = 'status ' + (pass ? 'ok' : 'ng');
+      result.innerHTML = pass
+        ? `<b>PASS</b>：檢出 ${detections.length} 個黃色螺栓 / 黃銅螺套，符合期望 ${expectedCount} 個。`
+        : `<b>NG</b>：檢出 ${detections.length} 個，期望 ${expectedCount} 個。請檢查是否缺件、遮蔽、曝光過暗或門檻過高。`;
+
+      const tbody = el('detailBody');
+      tbody.innerHTML = '';
+      detections.forEach((d, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${d.x.toFixed(1)}</td>
+          <td>${d.y.toFixed(1)}</td>
+          <td>${d.r.toFixed(1)}</td>
+          <td>${(d.score * 100).toFixed(1)}%</td>
+          <td>${Array.from(new Set(d.sources)).join(' + ')}，合併 ${d.rawCount} 筆</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      el('detailTable').hidden = detections.length === 0;
+    }
+
+    function runDetection() {
+      if (!cvReady || !imageReady) return;
+
+      const expectedCount = Number.parseInt(el('expectedCount').value, 10) || 4;
+      const darkThreshold = Number.parseInt(el('darkThreshold').value, 10) || 65;
+      const minYellowRatio = (Number.parseFloat(el('yellowRatio').value) || 25) / 100;
+      const warmDelta = Number.parseFloat(el('warmDelta').value) || 8;
+
+      let src = null;
+      let dst = null;
+      let gray = null;
+      let blur = null;
+      let dark = null;
+      let warmMask = null;
+      let warmClean = null;
+      let kernel = null;
+      let contours = null;
+      let hierarchy = null;
+      let warmContours = null;
+      let warmHierarchy = null;
+
+      try {
+        src = cv.imread(canvasInput); // RGBA
+        dst = src.clone();
+        const w = src.cols;
+        const h = src.rows;
+        const imgArea = w * h;
+        const detections = [];
+
+        // A. 主路徑：找黑色內孔，再確認周圍是否有黃色 / 黃銅色環。
+        gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+        blur = new cv.Mat();
+        cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+
+        dark = new cv.Mat();
+        cv.threshold(blur, dark, darkThreshold, 255, cv.THRESH_BINARY_INV);
+
+        contours = new cv.MatVector();
+        hierarchy = new cv.Mat();
+        cv.findContours(dark, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        const minHoleArea = Math.max(8, 0.000015 * imgArea);
+        const maxHoleArea = 0.003 * imgArea;
+
+        for (let i = 0; i < contours.size(); i++) {
+          const cnt = contours.get(i);
+          const area = cv.contourArea(cnt);
+
+          if (area >= minHoleArea && area <= maxHoleArea) {
+            const rect = cv.boundingRect(cnt);
+            const aspect = rect.width / Math.max(1, rect.height);
+            const perimeter = cv.arcLength(cnt, true);
+            const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+
+            if (aspect >= 0.45 && aspect <= 2.2 && circularity >= 0.38) {
+              const cx = rect.x + rect.width / 2;
+              const cy = rect.y + rect.height / 2;
+              const r = 0.5 * Math.max(rect.width, rect.height);
+
+              if (r >= 3 && r <= 0.06 * Math.min(w, h)) {
+                const yellowRatio = brassRatioInAnnulus(src, cx, cy, r, warmDelta);
+                if (yellowRatio >= minYellowRatio) {
+                  detections.push({
+                    x: cx,
+                    y: cy,
+                    r: Math.max(12, r * 2.2),
+                    score: yellowRatio,
+                    source: '黑孔+黃環'
+                  });
+                }
+              }
+            }
+          }
+          cnt.delete();
+        }
+
+        // B. 備援路徑：黃色連通區。可抓到靠影像邊界、黑色內孔被裁切的螺套。
+        warmMask = makeWarmMask(src, warmDelta);
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(3, 3));
+        warmClean = new cv.Mat();
+        cv.morphologyEx(warmMask, warmClean, cv.MORPH_OPEN, kernel);
+
+        warmContours = new cv.MatVector();
+        warmHierarchy = new cv.Mat();
+        cv.findContours(warmClean, warmContours, warmHierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        const minWarmArea = Math.max(18, 0.000025 * imgArea);
+        const maxWarmArea = 0.008 * imgArea;
+
+        for (let i = 0; i < warmContours.size(); i++) {
+          const cnt = warmContours.get(i);
+          const area = cv.contourArea(cnt);
+
+          if (area >= minWarmArea && area <= maxWarmArea) {
+            const rect = cv.boundingRect(cnt);
+            const aspect = rect.width / Math.max(1, rect.height);
+            const perimeter = cv.arcLength(cnt, true);
+            const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+            const touchesBorder = rect.x <= 1 || rect.y <= 1 ||
+              (rect.x + rect.width) >= (w - 2) || (rect.y + rect.height) >= (h - 2);
+
+            if (rect.width >= 5 && rect.height >= 5 && aspect >= 0.35 && aspect <= 3.0) {
+              if (circularity >= 0.18 || touchesBorder) {
+                const radius = 0.5 * Math.max(rect.width, rect.height);
+                const pad = Math.round(radius * 0.3 + 2);
+                const darkRatio = darkRatioInRect(gray, rect, pad, darkThreshold);
+
+                // 一般螺套中間會有黑孔；若碰到影像邊界，允許黑孔被裁切。
+                if (darkRatio >= 0.02 || touchesBorder) {
+                  detections.push({
+                    x: rect.x + rect.width / 2,
+                    y: rect.y + rect.height / 2,
+                    r: radius,
+                    score: Math.min(0.95, 0.45 + area / (0.003 * imgArea)),
+                    source: '黃色連通區'
+                  });
+                }
+              }
+            }
+          }
+          cnt.delete();
+        }
+
+        const merged = mergeDetections(detections, w, h);
+        const pass = merged.length === expectedCount;
+
+        // 畫圖：綠色 = PASS 數量時的檢測框；紅色 = 數量不符時提醒。
+        const drawColor = pass ? new cv.Scalar(0, 220, 0, 255) : new cv.Scalar(255, 40, 40, 255);
+        const textColor = drawColor;
+
+        merged.forEach((d, index) => {
+          const center = new cv.Point(Math.round(d.x), Math.round(d.y));
+          const radius = Math.round(Math.max(12, d.r));
+          cv.circle(dst, center, radius, drawColor, 3);
+          cv.circle(dst, center, 2, drawColor, -1);
+          cv.putText(
+            dst,
+            String(index + 1),
+            new cv.Point(Math.round(d.x + radius + 4), Math.round(d.y - radius - 4)),
+            cv.FONT_HERSHEY_SIMPLEX,
+            0.75,
+            textColor,
+            2
+          );
+        });
+
+        cv.putText(
+          dst,
+          `${pass ? 'OK' : 'NG'} COUNT ${merged.length}/${expectedCount}`,
+          new cv.Point(18, 38),
+          cv.FONT_HERSHEY_SIMPLEX,
+          1.0,
+          textColor,
+          3
+        );
+
+        cv.imshow(canvasOutput, dst);
+        renderResult(merged, expectedCount, pass);
+        statusBox.textContent = `影像大小 ${w} x ${h}；原始候選 ${detections.length} 筆，合併後 ${merged.length} 筆。`;
+      } catch (err) {
+        console.error(err);
+        statusBox.textContent = '偵測時發生錯誤，請看瀏覽器 console。';
+        el('result').className = 'status ng';
+        el('result').textContent = String(err && err.message ? err.message : err);
+      } finally {
+        if (src) src.delete();
+        if (dst) dst.delete();
+        if (gray) gray.delete();
+        if (blur) blur.delete();
+        if (dark) dark.delete();
+        if (warmMask) warmMask.delete();
+        if (warmClean) warmClean.delete();
+        if (kernel) kernel.delete();
+        if (contours) contours.delete();
+        if (hierarchy) hierarchy.delete();
+        if (warmContours) warmContours.delete();
+        if (warmHierarchy) warmHierarchy.delete();
+      }
+    }
+  </script>
+
+  <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+</body>
+</html>
