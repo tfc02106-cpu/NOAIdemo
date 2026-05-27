@@ -1,0 +1,31 @@
+<details class="engineer-settings" id="engineerSettings">
+  <summary>工程師設定欄（點開調整門檻）</summary>
+
+  <div class="engineer-grid">
+    <p class="settings-note">
+      這裡放偵測門檻，正常操作時不用展開。
+      漏抓時可降低黃環比例或黃色強度；誤抓時提高門檻。
+    </p>
+
+    <div class="field">
+      <label for="darkThreshold">黑孔門檻：<span id="darkThresholdValue">65</span></label>
+      <input id="darkThreshold" type="range" min="35" max="110" step="1" value="65" />
+    </div>
+
+    <div class="field">
+      <label for="yellowRatio">黃環比例門檻：<span id="yellowRatioValue">25%</span></label>
+      <input id="yellowRatio" type="range" min="5" max="70" step="1" value="25" />
+    </div>
+
+    <div class="field">
+      <label for="warmDelta">黃色強度門檻：<span id="warmDeltaValue">8</span></label>
+      <input id="warmDelta" type="range" min="0" max="35" step="1" value="8" />
+    </div>
+
+    <div class="field">
+      <button id="resetEngineerSettings" type="button" class="secondary">
+        還原預設門檻
+      </button>
+    </div>
+  </div>
+</details>
